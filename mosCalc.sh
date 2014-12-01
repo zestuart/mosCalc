@@ -15,7 +15,7 @@ function displayOutput() {
 }
 
 function routeLog() {
-     nicInUse=$(route get $host | grep interface | awk '{print $2}')
+    nicInUse=$(route get $host | grep interface | awk '{print $2}')
     routingIP=$(ifconfig $nicInUse | grep inet\  | awk '{print $2}')
     echo "------Network and route information------" > /tmp/plot-$run/$resultsFile
     echo "NIC: $nicInUse" >> /tmp/plot-$run/$resultsFile
@@ -42,22 +42,26 @@ function report() {
      #average
      for i in ${hostArray[@]}; do
           hostAv=$(perl -lane '$a+=$_ for(@F);$f+=scalar(@F);END{print "".$a/$f}' /tmp/plot-$run/$i-route-to-host)
-          echo "$i: $hostAv"
+          echo "Average for $i: $hostAv"
      done
 
      #jitter
-     trim=$increment
-     for i in ${hostArray[@]}; do
-          while [ $trim -gt 0 ]
-               first=$(cat /tmp/plot-$run/$i-route-to-host | head -n 1)
-               second=$(cat /tmp/plot-$run/$i-route-to-host | head -n 1 | tail -n 2)
-               if [ "$first" -gt "$second" ] ; then
-                    let jitter=$first-$second
+     trim=$increment #number of times to calculate jitter
+     for i in ${hostArray[@]}; do #array of hosts in route
+     ttlArray=$(cat /tmp/plot-$run/$i-route-to-host)
+          while [ $trim -gt 1 ] ; do
+            first=$("${ttlArray[$fistInt]}")
+            second=$("${ttlArray[$secondInt]}")
+               if [ $first > $second ] ; then
+                    jitter=$(bc<<<"$first - $second")
+                    echo $jitter >> /tmp/plot-$run/$i-jitterCalc
                else
-                    let jitter=$second-$first
+                    jitter=$(bc<<<"$second - $first")
+                    echo $jitter >> /tmp/plot-$run/$i-jitterCalc
                fi
-               cat /tmp/plot-$run/$i-route-to-host
-               let trim=$increment-1
+               trim=$((trim-1))
+               firstInt=$((firstInt+2))
+               secondInt=$((secondInt+2))
           done
      done
 
